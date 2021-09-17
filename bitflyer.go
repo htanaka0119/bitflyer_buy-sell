@@ -55,7 +55,6 @@ func (api *APIClient) doRequest(method, urlPath string, query map[string]string,
 		return
 	}
 	endpoint := baseURL.ResolveReference(apiURL).String()
-	log.Printf("action=doRequest endpoint=%s", endpoint)
 	req, err := http.NewRequest(method, endpoint, bytes.NewBuffer(data))
 	if err != nil {
 		return
@@ -81,28 +80,7 @@ func (api *APIClient) doRequest(method, urlPath string, query map[string]string,
 	return body, nil
 }
 
-type Balance struct {
-	CurrentCode string `json:"currency_code"`
-	Amount float64 `json:"amount"`
-	Available float64 `json:"available"`
-}
 
-func (api *APIClient) GetBalance() ([]Balance, error){
-	url := "me/getbalance"
-	resp, err := api.doRequest("GET", url, map[string]string{}, nil)
-	log.Printf("url=%s resp=%s", url, string(resp))
-	if err != nil {
-		log.Printf("action=GetBalance err=%s", err.Error())
-		return nil, err
-	}
-	var balance []Balance
-	err = json.Unmarshal(resp, &balance)
-	if err != nil {
-		log.Printf("action=GetBalance err=%s", err.Error())
-		return nil, err
-	}
-	return balance, nil
-}
 
 type Ticker struct {
 	ProductCode     string  `json:"product_code"`
@@ -126,7 +104,7 @@ func (t *Ticker) GetMidPrice() float64 {
 func (t *Ticker) DateTime() time.Time {
 	dateTime, err := time.Parse(time.RFC3339, t.Timestamp)
 	if err != nil{
-		log.Printf("action=DateTime, err=%s", err.Error())
+		return nil, err
 	}
 	return dateTime
 }
@@ -164,17 +142,16 @@ type SubscribeParams struct {
 
 func (api *APIClient) GetRealTimeTicker(symbol string, ch chan<- Ticker) {
 	u := url.URL{Scheme: "wss", Host: "ws.lightstream.bitflyer.com", Path: "/json-rpc"}
-	log.Printf("connecting to %s", u.String())
+	
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
-		log.Fatal("dial:", err)
+		return nil, err
 	}
 	defer c.Close()
 
 	channel := fmt.Sprintf("lightning_ticker_%s", symbol)
 	if err := c.WriteJSON(&JsonRPC2{Version: "2.0", Method: "subscribe", Params: &SubscribeParams{channel}}); err != nil {
-		log.Fatal("subscribe:", err)
 		return
 	}
 
@@ -182,7 +159,6 @@ OUTER:
 	for {
 		message := new(JsonRPC2)
 		if err := c.ReadJSON(message); err != nil {
-			log.Println("read:", err)
 			return
 		}
 
