@@ -109,7 +109,7 @@ type Order struct {
 type ResponseSendChildOrder struct {
 	ChildOrderAcceptanceID string `json:"child_order_acceptance_id"`
 }
-
+//新規注文
 func (api *APIClient) SendOrder(order *Order) (*ResponseSendChildOrder, error) {
 	data, err := json.Marshal(order)
 	if err != nil {
